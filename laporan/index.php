@@ -2,7 +2,7 @@
 require_once '../config/database.php';
 $pageTitle='Laporan Penjualan';
 $rows=$conn->query("SELECT * FROM view_total_belanja ORDER BY total_belanja DESC");
-$summary=$conn->query("SELECT COUNT(*) jumlah, COALESCE(SUM(total_belanja),0) total FROM tbl_transaksi")->fetch_assoc();
+$summary=$conn->query("SELECT COUNT(*) jumlah, COALESCE(SUM(total_belanja),0) total FROM tbl_transaksi WHERE payment_status = 'paid'")->fetch_assoc();
 include '../includes/header.php';
 ?>
 <div class="row g-3 mb-3"><div class="col-md-6"><div class="card stat-card"><div class="card-body"><div class="text-secondary">Jumlah Transaksi</div><div class="fs-3 fw-bold"><?= (int)$summary['jumlah'] ?></div></div></div></div><div class="col-md-6"><div class="card stat-card"><div class="card-body"><div class="text-secondary">Total Penjualan</div><div class="fs-3 fw-bold"><?= rupiah($summary['total']) ?></div></div></div></div></div>

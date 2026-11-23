@@ -35,17 +35,17 @@ function ambilAngka($conn, $sql, $kolom = 'total') {
 // Statistik
 $totalTransaksi = ambilAngka(
     $conn,
-    "SELECT COUNT(*) AS total FROM tbl_transaksi"
+    "SELECT COUNT(*) AS total FROM tbl_transaksi WHERE payment_status = 'paid'"
 );
 
 $totalPendapatan = ambilAngka(
     $conn,
-    "SELECT COALESCE(SUM(total_belanja),0) AS total FROM tbl_transaksi"
+    "SELECT COALESCE(SUM(total_belanja),0) AS total FROM tbl_transaksi WHERE payment_status = 'paid'"
 );
 
 $transaksiHariIni = ambilAngka(
     $conn,
-    "SELECT COUNT(*) AS total FROM tbl_transaksi WHERE DATE(tanggal) = CURDATE()"
+    "SELECT COUNT(*) AS total FROM tbl_transaksi WHERE payment_status = 'paid' AND DATE(tanggal) = CURDATE()"
 );
 
 $rataTransaksi = $totalTransaksi > 0
@@ -65,7 +65,7 @@ for ($i = 6; $i >= 0; $i--) {
         $conn,
         "SELECT COALESCE(SUM(total_belanja),0) AS total
          FROM tbl_transaksi
-         WHERE DATE(tanggal) = ?"
+         WHERE payment_status = 'paid' AND DATE(tanggal) = ?"
     );
 
     mysqli_stmt_bind_param($stmtGrafik, "s", $tanggal);
@@ -89,6 +89,7 @@ $queryTerbaru = mysqli_query($conn, "
     FROM tbl_transaksi t
     LEFT JOIN tbl_pelanggan p
         ON t.id_pelanggan = p.id_pelanggan
+    WHERE t.payment_status = 'paid'
     ORDER BY t.id_transaksi DESC
     LIMIT 5
 ");
@@ -102,8 +103,9 @@ $queryProduk = mysqli_query($conn, "
     SELECT
         nama_produk,
         SUM(jumlah) AS total_terjual
-    FROM tbl_detail_transaksi
-    GROUP BY nama_produk
+    FROM tbl_detail_transaksi d
+    JOIN tbl_transaksi t ON t.id_transaksi = d.id_transaksi AND t.payment_status = 'paid'
+    GROUP BY d.nama_produk
     ORDER BY total_terjual DESC
     LIMIT 5
 ");
@@ -115,10 +117,11 @@ if (!$queryProduk) {
 // Komposisi pendapatan
 $queryKomposisi = mysqli_query($conn, "
     SELECT
-        nama_produk,
-        SUM(jumlah * harga) AS total
-    FROM tbl_detail_transaksi
-    GROUP BY nama_produk
+        d.nama_produk,
+        SUM(d.jumlah * d.harga) AS total
+    FROM tbl_detail_transaksi d
+    JOIN tbl_transaksi t ON t.id_transaksi = d.id_transaksi AND t.payment_status = 'paid'
+    GROUP BY d.nama_produk
     ORDER BY total DESC
     LIMIT 5
 ");

@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../config/payment_status.php';
 
 if (($_SESSION['user']['role'] ?? '') !== 'pelanggan') {
     redirect('login.php');
@@ -78,6 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $transaksiDimulai = false;
+        $idTransaksi = 0;
         try {
             $conn->begin_transaction();
             $transaksiDimulai = true;
@@ -95,21 +97,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new RuntimeException('Stok ' . ($produk['nama_produk'] ?? 'produk') . ' tidak mencukupi. Periksa keranjang Anda.');
                 }
                 $harga = (float) $produk['harga'];
-                $total += $harga * $jumlah;
+                $total += round($harga) * $jumlah;
                 $detail[] = ['id' => $cartId, 'nama' => $produk['nama_produk'], 'jumlah' => $jumlah, 'harga' => $harga];
             }
             $stmtProduk->close();
 
-            $stmtTransaksi = $conn->prepare('INSERT INTO tbl_transaksi (tanggal, id_pelanggan, total_belanja) VALUES (NOW(), ?, ?)');
+            $stmtTransaksi = $conn->prepare("INSERT INTO tbl_transaksi (tanggal, id_pelanggan, total_belanja, payment_status, payment_method) VALUES (NOW(), ?, ?, 'pending', 'qris_static')");
             $stmtTransaksi->bind_param('id', $idPelanggan, $total);
             $stmtTransaksi->execute();
             $idTransaksi = $conn->insert_id;
             $stmtTransaksi->close();
 
-            $stmtDetail = $conn->prepare('INSERT INTO tbl_detail_transaksi (id_transaksi, nama_produk, jumlah, harga) VALUES (?, ?, ?, ?)');
+            $paymentOrderId = 'TOKO-' . $idTransaksi . '-' . strtoupper(bin2hex(random_bytes(4)));
+            $stmtOrderId = $conn->prepare('UPDATE tbl_transaksi SET payment_order_id = ? WHERE id_transaksi = ?');
+            $stmtOrderId->bind_param('si', $paymentOrderId, $idTransaksi);
+            $stmtOrderId->execute();
+            $stmtOrderId->close();
+
+            $stmtDetail = $conn->prepare('INSERT INTO tbl_detail_transaksi (id_transaksi, id_produk, nama_produk, jumlah, harga) VALUES (?, ?, ?, ?, ?)');
             $stmtStok = $conn->prepare('UPDATE tbl_produk SET stok = stok - ? WHERE id_produk = ? AND stok >= ?');
             foreach ($detail as $baris) {
-                $stmtDetail->bind_param('isid', $idTransaksi, $baris['nama'], $baris['jumlah'], $baris['harga']);
+                $stmtDetail->bind_param('iisid', $idTransaksi, $baris['id'], $baris['nama'], $baris['jumlah'], $baris['harga']);
                 $stmtDetail->execute();
                 $stmtStok->bind_param('iii', $baris['jumlah'], $baris['id'], $baris['jumlah']);
                 $stmtStok->execute();
@@ -120,15 +128,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmtDetail->close();
             $stmtStok->close();
             $conn->commit();
+            $transaksiDimulai = false;
 
             $cart = [];
             $_SESSION['csrf_pelanggan'] = bin2hex(random_bytes(32));
-            set_flash('success', 'Pesanan berhasil dibuat.');
-            header('Location: detail_transaksi.php?id=' . $idTransaksi);
+            header('Location: pembayaran.php?id=' . $idTransaksi);
             exit;
         } catch (Throwable $exception) {
             if ($transaksiDimulai) {
                 $conn->rollback();
+            }
+            if ($idTransaksi > 0) {
+                try { applyPaymentStatus($conn, $paymentOrderId ?? '', 'failed'); } catch (Throwable $ignored) {}
             }
             set_flash('danger', $exception->getMessage());
             redirect('pelanggan/beranda.php#keranjang');
@@ -178,7 +189,7 @@ if ($cart) {
 
 $riwayat = [];
 if ($idPelanggan > 0) {
-    $riwayatStmt = $conn->prepare('SELECT id_transaksi, tanggal, total_belanja FROM tbl_transaksi WHERE id_pelanggan = ? ORDER BY tanggal DESC, id_transaksi DESC LIMIT 10');
+    $riwayatStmt = $conn->prepare('SELECT id_transaksi, tanggal, total_belanja, payment_status FROM tbl_transaksi WHERE id_pelanggan = ? ORDER BY tanggal DESC, id_transaksi DESC LIMIT 10');
     $riwayatStmt->bind_param('i', $idPelanggan);
     $riwayatStmt->execute();
     $riwayat = $riwayatStmt->get_result()->fetch_all(MYSQLI_ASSOC);
@@ -212,7 +223,7 @@ if ($idPelanggan > 0) {
             <div class="d-flex justify-content-between align-items-end gap-3 mb-3"><div><h2 class="section-title mb-1">Katalog produk</h2><div class="text-secondary small">Pilih produk untuk memasukkannya ke keranjang.</div></div></div>
             <form method="get" class="input-group mb-3" data-auto-search data-search-delay="1200"><span class="input-group-text bg-white"><i class="bi bi-search"></i></span><input class="form-control" name="q" list="saranProdukPelanggan" data-search-input autocomplete="off" value="<?= e($cari) ?>" placeholder="Cari nama atau kode produk" aria-label="Cari produk"><datalist id="saranProdukPelanggan"><?php foreach ($saranProduk as $saran): ?><option value="<?= e($saran['nama_produk']) ?>" label="<?= e($saran['kode_produk']) ?>"></option><option value="<?= e($saran['kode_produk']) ?>" label="<?= e($saran['nama_produk']) ?>"></option><?php endforeach; ?></datalist><?php if ($cari !== ''): ?><a class="btn btn-outline-secondary" href="beranda.php">Reset</a><?php endif; ?></form>
             <?php if (!$produk): ?><div class="card panel"><div class="card-body text-center text-secondary py-5">Produk tidak ditemukan.</div></div><?php else: ?><div class="row g-3">
-                <?php foreach ($produk as $item): ?><div class="col-6 col-md-4"><article class="card product-card"><div class="product-image"><?php if (!empty($item['gambar'])): ?><img src="../assets/img/produk/<?= rawurlencode(basename($item['gambar'])) ?>" alt="<?= e($item['nama_produk']) ?>" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><i class="bi bi-box-seam placeholder" style="display:none"></i><?php else: ?><i class="bi bi-box-seam placeholder"></i><?php endif; ?></div><div class="card-body d-flex flex-column"><div class="small text-secondary mb-1"><?= e($item['kategori'] ?: 'Produk') ?> · <?= e($item['kode_produk']) ?></div><h3 class="h6 fw-bold mb-2"><?= e($item['nama_produk']) ?></h3><div class="fw-bold text-primary mb-1"><?= rupiah($item['harga']) ?></div><div class="small text-secondary mb-3">Stok: <?= (int) $item['stok'] ?></div><form method="post" class="mt-auto"><input type="hidden" name="csrf" value="<?= e($csrf) ?>"><input type="hidden" name="aksi" value="tambah"><input type="hidden" name="id_produk" value="<?= (int) $item['id_produk'] ?>"><button class="btn btn-sm btn-primary w-100" <?= (int) $item['stok'] < 1 ? 'disabled' : '' ?>><i class="bi bi-cart-plus me-1"></i><?= (int) $item['stok'] < 1 ? 'Stok habis' : 'Tambah ke keranjang' ?></button></form></div></article></div><?php endforeach; ?>
+                <?php foreach ($produk as $item): ?><div class="col-6 col-md-4"><article class="card product-card"><div class="product-image"><?php if (!empty($item['gambar'])): ?><img src="../assets/img/produk/<?= rawurlencode(basename($item['gambar'])) ?>" alt="<?= e($item['nama_produk']) ?>" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><i class="bi bi-box-seam placeholder" style="display:none"></i><?php else: ?><i class="bi bi-box-seam placeholder"></i><?php endif; ?></div><div class="card-body d-flex flex-column"><div class="small text-secondary mb-1"><?= e($item['kategori'] ?: 'Produk') ?> · <?= e($item['kode_produk']) ?></div><h3 class="h6 fw-bold mb-2"><?= e($item['nama_produk']) ?></h3><div class="fw-bold text-primary mb-1"><?= rupiah($item['harga']) ?></div><div class="small text-secondary mb-2">Stok: <?= (int) $item['stok'] ?></div><div class="text-center border rounded p-2 mb-3"><svg class="barcode-produk" data-code="<?= e($item['kode_produk']) ?>" aria-label="Barcode <?= e($item['kode_produk']) ?>"></svg><div class="small text-secondary"><?= e($item['kode_produk']) ?></div></div><form method="post" class="mt-auto"><input type="hidden" name="csrf" value="<?= e($csrf) ?>"><input type="hidden" name="aksi" value="tambah"><input type="hidden" name="id_produk" value="<?= (int) $item['id_produk'] ?>"><button class="btn btn-sm btn-primary w-100" <?= (int) $item['stok'] < 1 ? 'disabled' : '' ?>><i class="bi bi-cart-plus me-1"></i><?= (int) $item['stok'] < 1 ? 'Stok habis' : 'Tambah ke keranjang' ?></button></form></div></article></div><?php endforeach; ?>
             </div><?php endif; ?>
     </section>
 
@@ -227,13 +238,19 @@ if ($idPelanggan > 0) {
             <div class="card panel"><div class="card-body text-center text-secondary py-4"><i class="bi bi-receipt fs-2 d-block mb-2"></i>Belum ada transaksi pada akun ini.</div></div>
         <?php else: ?>
             <div class="card panel"><div class="table-responsive"><table class="table align-middle mb-0">
-                <thead class="table-light"><tr><th class="ps-3">No. pesanan</th><th>Tanggal</th><th>Total belanja</th><th class="text-end pe-3">Rincian</th></tr></thead>
-                <tbody><?php foreach ($riwayat as $transaksi): ?><tr><td class="ps-3 fw-semibold">#<?= (int) $transaksi['id_transaksi'] ?></td><td><?= e(date('d/m/Y', strtotime($transaksi['tanggal']))) ?></td><td><?= rupiah($transaksi['total_belanja']) ?></td><td class="text-end pe-3"><a class="btn btn-sm btn-outline-primary" href="<?= url('pelanggan/detail_transaksi.php?id=' . (int) $transaksi['id_transaksi']) ?>"><i class="bi bi-eye me-1"></i>Lihat detail</a></td></tr><?php endforeach; ?></tbody>
+                <thead class="table-light"><tr><th class="ps-3">No. pesanan</th><th>Tanggal</th><th>Total belanja</th><th>Status</th><th class="text-end pe-3">Rincian</th></tr></thead>
+                <tbody><?php foreach ($riwayat as $transaksi): ?><tr><td class="ps-3 fw-semibold">#<?= (int) $transaksi['id_transaksi'] ?></td><td><?= e(date('d/m/Y', strtotime($transaksi['tanggal']))) ?></td><td><?= rupiah($transaksi['total_belanja']) ?></td><td><?= e($transaksi['payment_status'] === 'paid' ? 'Dibayar' : ucfirst($transaksi['payment_status'])) ?></td><td class="text-end pe-3"><?php if ($transaksi['payment_status'] === 'pending'): ?><a class="btn btn-sm btn-primary" href="<?= url('pelanggan/pembayaran.php?id=' . (int) $transaksi['id_transaksi']) ?>">Bayar</a><?php else: ?><a class="btn btn-sm btn-outline-primary" href="<?= url('pelanggan/detail_transaksi.php?id=' . (int) $transaksi['id_transaksi']) ?>"><i class="bi bi-eye me-1"></i>Lihat detail</a><?php endif; ?></td></tr><?php endforeach; ?></tbody>
             </table></div></div>
         <?php endif; ?>
     </section>
 </div></main>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <script src="<?= url('assets/js/app.js') ?>"></script>
+<script>
+document.querySelectorAll('.barcode-produk').forEach(function (svg) {
+    JsBarcode(svg, svg.dataset.code, { format: 'CODE128', width: 1.5, height: 38, displayValue: false, margin: 2 });
+});
+</script>
 </body>
 </html>

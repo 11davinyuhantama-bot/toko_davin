@@ -30,8 +30,11 @@ FITUR
 CATATAN PENTING
 - Login tersedia untuk admin, kasir, dan pelanggan. Tabel akun serta akun demo dibuat dari db_tokoku.sql.
 - Akun demo: admin / admin123, kasir / kasir123, pelanggan / pelanggan123.
+- Login dengan RFID: impor `setup_rfid.sql` ke database `db_tokoko`. UID `0008493873` terdaftar untuk admin, `0008305215` untuk kasir, dan `0008442193` untuk akun pelanggan demo. Pembaca RFID harus mengirim UID sebagai input keyboard.
+- Pembayaran pelanggan memakai QRIS merchant statis dari `assets/img/qris_merchant.jpg`. Pelanggan membayar sesuai total pesanan dan mengunggah bukti; admin memeriksa dana masuk lalu mengonfirmasi pesanan pada menu Verifikasi Pembayaran. QRIS statis tidak mengirim status otomatis ke aplikasi, sehingga status tetap menunggu sampai admin memeriksanya.
 - Database yang dipakai aplikasi adalah db_tokoko (sesuai dump terbaru). Jika database sudah terlanjur diimpor, pilih db_tokoko di phpMyAdmin lalu impor setup_login.sql agar peran admin, kasir, dan pelanggan tersedia.
 - Untuk menyiapkan katalog, pilih db_tokoko di phpMyAdmin lalu impor setup_produk.sql. Admin dapat menambah, mengubah, dan menghapus produk; kasir dapat melihat katalog.
+- Barcode produk memakai Kode Barang (CODE128), sehingga otomatis tersedia untuk seluruh produk yang sudah ada dan produk baru tanpa perubahan database. Di menu Data Barang, pilih Cetak Barcode Produk untuk mencetak semua hasil sesuai filter, atau Cetak label pada produk tertentu.
 - Akun pelanggan masuk ke pelanggan/beranda.php untuk melihat katalog, mengisi keranjang, checkout, dan melihat riwayat belanja miliknya. Stok otomatis dikurangi ketika checkout berhasil.
 - Registrasi pelanggan tersedia melalui tautan Daftar di halaman login; pendaftaran membuat akun dan profil pelanggan sekaligus.
 - Database SQL yang diberikan juga tidak memiliki tabel produk terpisah. Rincian produk diambil dari tbl_detail_transaksi.

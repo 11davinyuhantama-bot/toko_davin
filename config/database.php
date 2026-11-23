@@ -43,6 +43,7 @@ try {
             url('logout.php'),
             url('pelanggan/beranda.php'),
             url('pelanggan/riwayat.php'),
+            url('pelanggan/pembayaran.php'),
             url('pelanggan/detail_transaksi.php')
         ];
         if (!in_array($currentScript, $allowedCustomerPages, true)) {

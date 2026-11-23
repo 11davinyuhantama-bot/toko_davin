@@ -17,12 +17,12 @@ $totalPelanggan = (int) $conn->query("
 ")->fetch_assoc()['total'];
 
 $totalTransaksi = (int) $conn->query("
-    SELECT COUNT(*) AS total FROM tbl_transaksi
+    SELECT COUNT(*) AS total FROM tbl_transaksi WHERE payment_status = 'paid'
 ")->fetch_assoc()['total'];
 
 $totalOmzet = (float) $conn->query("
     SELECT COALESCE(SUM(total_belanja), 0) AS total
-    FROM tbl_transaksi
+    FROM tbl_transaksi WHERE payment_status = 'paid'
 ")->fetch_assoc()['total'];
 
 // =============================
@@ -37,7 +37,7 @@ $result = $conn->query("
         SUM(total_belanja) AS omzet,
         COUNT(*) AS jumlah_transaksi
     FROM tbl_transaksi
-    WHERE tanggal >= DATE_FORMAT(
+    WHERE payment_status = 'paid' AND tanggal >= DATE_FORMAT(
         DATE_SUB(CURDATE(), INTERVAL 5 MONTH),
         '%Y-%m-01'
     )
@@ -102,6 +102,7 @@ $transaksiTerbaru = $conn->query("
     FROM tbl_transaksi t
     LEFT JOIN tbl_pelanggan p
         ON t.id_pelanggan = p.id_pelanggan
+    WHERE t.payment_status = 'paid'
     ORDER BY t.tanggal DESC, t.id_transaksi DESC
     LIMIT 5
 ");

@@ -24,7 +24,31 @@ if (!empty($_SESSION['user'])) {
 
 $error = '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['login_mode'] ?? '') === 'rfid') {
+    $rfidUid = strtoupper(preg_replace('/\s+/', '', trim($_POST['rfid_uid'] ?? '')));
+    try {
+        if ($rfidUid !== '') {
+            $stmt = $conn->prepare("SELECT id_user, nama, username, role, id_pelanggan FROM tbl_user WHERE rfid_uid = ? AND role IN ('admin', 'kasir', 'pelanggan') LIMIT 1");
+            $stmt->bind_param('s', $rfidUid);
+            $stmt->execute();
+            $user = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            if ($user) {
+                session_regenerate_id(true);
+                $_SESSION['user'] = ['id' => (int) $user['id_user'], 'nama' => $user['nama'], 'username' => $user['username'], 'role' => $user['role'], 'id_pelanggan' => $user['id_pelanggan'] !== null ? (int) $user['id_pelanggan'] : null];
+                if ($user['role'] === 'admin') redirect('index.php');
+                if ($user['role'] === 'kasir') redirect('kasir/index.php');
+                redirect('pelanggan/beranda.php');
+            }
+        }
+        $error = $rfidUid === '' ? 'Tempelkan kartu RFID untuk masuk.' : 'Kartu RFID belum terdaftar untuk akun ini.';
+    } catch (mysqli_sql_exception $exception) {
+        http_response_code(503);
+        $error = 'Fitur RFID belum siap. Impor setup_rfid.sql ke database db_tokoko terlebih dahulu.';
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['login_mode'] ?? 'password') === 'password') {
 
     $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
@@ -191,6 +215,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php endif; ?>
 
     <form method="post" autocomplete="on">
+        <input type="hidden" name="login_mode" value="password">
 
         <div class="mb-3">
 
@@ -252,6 +277,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <i class="bi bi-arrow-right ms-1"></i>
         </button>
 
+    </form>
+
+    <div class="text-center text-secondary small my-3">atau masuk dengan RFID</div>
+    <form method="post" autocomplete="off">
+        <input type="hidden" name="login_mode" value="rfid">
+        <label class="form-label" for="rfid_uid">Tempelkan kartu RFID</label>
+        <div class="input-group mb-2">
+            <span class="input-group-text"><i class="bi bi-upc-scan"></i></span>
+            <input class="form-control" type="password" id="rfid_uid" name="rfid_uid" placeholder="Siap membaca kartu..." autocomplete="off" autofocus required>
+        </div>
+        <button class="btn btn-outline-primary w-100" type="submit">Masuk dengan RFID</button>
     </form>
 
     <div class="text-secondary small mt-4">

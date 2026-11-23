@@ -12,7 +12,7 @@ $halaman = max(1, (int) ($_GET['halaman'] ?? 1));
 $perHalaman = 15;
 $offset = ($halaman - 1) * $perHalaman;
 
-$where = [];
+$where = ["t.payment_status = 'paid'"];
 $types = '';
 $params = [];
 if ($kataKunci !== '') {

@@ -228,6 +228,9 @@ if ($canManage) {
         Tambah Barang
     </a>
     <?php endif; ?>
+    <a href="barcode.php?keyword=<?= rawurlencode($keyword) ?>&kategori=<?= rawurlencode($kategori) ?>" target="_blank" class="btn btn-outline-dark">
+        <i class="bi bi-upc-scan me-1"></i> Cetak Barcode Produk
+    </a>
 
 </div>
 
@@ -355,6 +358,12 @@ if ($canManage) {
                         Stok: <?= (int)$row['stok'] ?> barang
                     </div>
 
+                    <div class="mt-3 text-center border rounded p-2">
+                        <svg class="product-barcode" data-barcode="<?= e($row['kode_produk']) ?>" aria-label="Barcode <?= e($row['kode_produk']) ?>"></svg>
+                        <div class="small text-secondary"><?= e($row['kode_produk']) ?></div>
+                        <a class="small" target="_blank" href="barcode.php?id=<?= (int) $row['id_produk'] ?>">Cetak label</a>
+                    </div>
+
                     <?php if (!$canManage): ?>
                     <form action="tambah_stok.php" method="post" class="d-flex gap-2 mt-3">
                         <input type="hidden" name="csrf_produk" value="<?= e($csrfProduk) ?>">
@@ -450,6 +459,13 @@ document.addEventListener("DOMContentLoaded", function () {
             updateCards();
         });
     }
+});
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script>
+document.querySelectorAll('.product-barcode').forEach(function (svg) {
+    JsBarcode(svg, svg.dataset.barcode, { format: 'CODE128', width: 1.5, height: 38, displayValue: false, margin: 2 });
 });
 </script>
 

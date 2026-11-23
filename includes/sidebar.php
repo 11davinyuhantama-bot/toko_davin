@@ -52,6 +52,14 @@ $isProduk = str_contains($path, '/produk/');
     </a>
 
     <a
+        class="side-link <?= str_contains($path, '/pembayaran_pending.php') ? 'active' : '' ?>"
+        href="<?= url('transaksi/pembayaran_pending.php') ?>"
+    >
+        <i class="bi bi-qr-code-scan"></i>
+        Verifikasi Pembayaran
+    </a>
+
+    <a
     class="side-link <?= $isProduk ? 'active' : '' ?>"
     href="<?= url('produk/index.php') ?>"
 >

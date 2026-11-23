@@ -655,9 +655,10 @@ unset($_SESSION['pesan_kasir']);
                                    name="cari"
                                    list="saranProdukKasir"
                                    data-search-input
+                                   autofocus
                                    autocomplete="off"
                                    class="form-control"
-                                   placeholder="Cari nama atau kode produk..."
+                                   placeholder="Pindai barcode atau cari nama/kode produk..."
                                    value="<?= htmlspecialchars($cari); ?>">
 
                             <datalist id="saranProdukKasir">

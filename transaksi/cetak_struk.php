@@ -17,7 +17,7 @@ if (!$transaksi) {
     exit('Transaksi tidak ditemukan.');
 }
 
-$stmt = $conn->prepare('SELECT nama_produk, jumlah, harga FROM tbl_detail_transaksi WHERE id_transaksi = ? ORDER BY id_detail');
+$stmt = $conn->prepare('SELECT d.nama_produk, d.jumlah, d.harga, p.kode_produk FROM tbl_detail_transaksi d LEFT JOIN tbl_produk p ON p.nama_produk = d.nama_produk WHERE d.id_transaksi = ? ORDER BY d.id_detail');
 $stmt->bind_param('i', $id);
 $stmt->execute();
 $detail = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
@@ -49,11 +49,12 @@ $jumlahItem = array_sum(array_map(static fn($item) => (int) $item['jumlah'], $de
         .total-box{margin-top:8px;padding:19px 20px;background:#f1f5ff;border:1px solid #e0e7ff;border-radius:15px}
         .receipt-foot{border-top:1px dashed #d7deea;margin-top:24px;padding-top:20px;text-align:center;color:#64748b;font-size:.88rem}
         .actions{display:flex;justify-content:center;gap:10px;margin-top:18px}
+        .item-barcode{display:block;width:150px;max-width:100%;height:30px;margin-top:4px}
         @media(max-width:575px){.page-wrap{margin:18px auto;padding:0 10px}.receipt-head{padding:25px 22px}.receipt-body{padding:22px 18px}.receipt-meta{grid-template-columns:1fr 1fr;padding:14px}.receipt-meta>div:last-child{grid-column:1/-1}.receipt-table th,.receipt-table td{padding:11px 5px}.receipt-table{font-size:.86rem}}
-        @page{size:58mm auto;margin:2mm}
+        @page{size:80mm auto;margin:3mm}
         @media print{
             body{min-height:0;background:#fff;color:#000;font:10px Arial,sans-serif}
-            .page-wrap{width:54mm;max-width:none;margin:0;padding:0}
+            .page-wrap{width:74mm;max-width:none;margin:0;padding:0}
             .receipt{border:0;border-radius:0;box-shadow:none}
             .receipt-head{padding:4mm 2mm;background:#fff!important;color:#000!important;border-bottom:1px dashed #000}
             .receipt-head:after{display:none}.brand-mark{display:none}
@@ -64,7 +65,7 @@ $jumlahItem = array_sum(array_map(static fn($item) => (int) $item['jumlah'], $de
             .receipt-meta>div{display:flex;justify-content:space-between;gap:4px;margin-bottom:2mm}
             .meta-label,.meta-value{font-size:9px;color:#000}
             .receipt-table{font-size:9px}.receipt-table th{font-size:8px;color:#000;padding:2mm 0;border-bottom:1px dashed #000}
-            .receipt-table td{padding:2mm 0;border-bottom:0}.item-price{font-size:8px;color:#000}
+            .receipt-table td{padding:2mm 0;border-bottom:0}.item-price{font-size:8px;color:#000}.item-barcode{width:34mm;height:8mm;margin-top:1mm}
             .total-box{margin-top:2mm;padding:3mm 0;background:#fff;border:0;border-top:1px dashed #000;border-radius:0}
             .receipt-foot{margin-top:3mm;padding-top:3mm;border-top:1px dashed #000;color:#000;font-size:9px}
             .actions{display:none!important}
@@ -77,7 +78,7 @@ $jumlahItem = array_sum(array_map(static fn($item) => (int) $item['jumlah'], $de
         <header class="receipt-head">
             <div class="d-flex align-items-center gap-3 position-relative" style="z-index:1">
                 <div class="brand-mark"><i class="bi bi-shop-window"></i></div>
-                <div><div class="small text-white-50 text-uppercase fw-semibold">Bukti pembayaran</div><h1 class="h3 fw-bold mb-1">TOKO GRATIS HARAM</h1><p class="mb-0 text-white-50">Terima kasih telah berbelanja</p></div>
+                <div><div class="small text-white-50 text-uppercase fw-semibold">Bukti pembayaran</div><h1 class="h3 fw-bold mb-1">TOKO GRATIS DAVIN</h1><p class="mb-0 text-white-50">Terima kasih telah berbelanja</p></div>
             </div>
         </header>
         <div class="receipt-body">
@@ -97,7 +98,7 @@ $jumlahItem = array_sum(array_map(static fn($item) => (int) $item['jumlah'], $de
                 <thead><tr><th>Produk</th><th class="text-center">Qty</th><th class="text-end">Subtotal</th></tr></thead>
                 <tbody>
                 <?php foreach ($detail as $item): $subtotal = (int) $item['jumlah'] * (float) $item['harga']; ?>
-                    <tr><td><div class="item-name"><?= e($item['nama_produk']) ?></div><div class="item-price"><?= rupiah($item['harga']) ?> / item</div></td><td class="text-center fw-semibold"><?= (int) $item['jumlah'] ?></td><td class="text-end fw-semibold"><?= rupiah($subtotal) ?></td></tr>
+                    <tr><td><div class="item-name"><?= e($item['nama_produk']) ?></div><div class="item-price"><?= rupiah($item['harga']) ?> / item</div><?php if (!empty($item['kode_produk'])): ?><svg class="item-barcode" data-code="<?= e($item['kode_produk']) ?>" aria-label="Barcode <?= e($item['kode_produk']) ?>"></svg><div class="item-price"><?= e($item['kode_produk']) ?></div><?php endif; ?></td><td class="text-center fw-semibold"><?= (int) $item['jumlah'] ?></td><td class="text-end fw-semibold"><?= rupiah($subtotal) ?></td></tr>
                 <?php endforeach; ?>
                 </tbody>
             </table></div>
@@ -118,6 +119,12 @@ function keluar(){
     if(window.history.length>1){window.history.back();return;}
     window.location.href='index.php';
 }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script>
+document.querySelectorAll('.item-barcode').forEach(function (svg) {
+    JsBarcode(svg, svg.dataset.code, { format: 'CODE128', width: 1.2, height: 28, displayValue: false, margin: 1 });
+});
 </script>
 </body>
 </html>
