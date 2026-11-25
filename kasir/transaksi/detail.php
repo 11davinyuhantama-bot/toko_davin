@@ -13,8 +13,9 @@ if ($id < 1) {
     exit;
 }
 
-$stmt = $conn->prepare('SELECT t.id_transaksi, t.tanggal, t.total_belanja, p.nama_pelanggan, p.kota FROM tbl_transaksi t LEFT JOIN tbl_pelanggan p ON p.id_pelanggan = t.id_pelanggan WHERE t.id_transaksi = ? LIMIT 1');
-$stmt->bind_param('i', $id);
+$idKasir = (int) ($_SESSION['user']['id'] ?? 0);
+$stmt = $conn->prepare('SELECT t.id_transaksi, t.tanggal, t.total_belanja, p.nama_pelanggan, p.kota FROM tbl_transaksi t LEFT JOIN tbl_pelanggan p ON p.id_pelanggan = t.id_pelanggan WHERE t.id_transaksi = ? AND t.id_kasir = ? LIMIT 1');
+$stmt->bind_param('ii', $id, $idKasir);
 $stmt->execute();
 $transaksi = $stmt->get_result()->fetch_assoc();
 $stmt->close();

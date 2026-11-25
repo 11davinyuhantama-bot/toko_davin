@@ -12,6 +12,7 @@ $urlDashboardKasir = $diFolderTransaksiKasir ? '../index.php' : ($diHalamanProdu
 $urlTransaksiKasir = $diFolderTransaksiKasir ? 'index.php' : ($diHalamanProduk ? '../kasir/transaksi/index.php' : 'transaksi/index.php');
 $urlRiwayatKasir = $diFolderTransaksiKasir ? 'riwayat.php' : ($diHalamanProduk ? '../kasir/transaksi/riwayat.php' : 'transaksi/riwayat.php');
 $urlProdukKasir = $diFolderTransaksiKasir ? '../../produk/index.php' : ($diHalamanProduk ? 'index.php' : '../produk/index.php');
+$urlLaporanKasir = $diFolderTransaksiKasir ? '../laporan.php' : ($diHalamanProduk ? '../kasir/laporan.php' : 'laporan.php');
 $urlLogoutKasir = $diFolderTransaksiKasir ? '../../logout.php' : '../logout.php';
 $transaksiAktifKasir = $diFolderTransaksiKasir && in_array($halamanAktif, ['index.php', 'detail.php'], true);
 $namaKasir = $_SESSION['user']['nama'] ?? 'Kasir';
@@ -136,6 +137,12 @@ $namaKasir = $_SESSION['user']['nama'] ?? 'Kasir';
        class="menu-item <?= strpos($_SERVER['PHP_SELF'], '/produk/') !== false ? 'active' : '' ?>">
         <i class="bi bi-box-seam"></i>
         Data Produk
+    </a>
+
+    <a href="<?= htmlspecialchars($urlLaporanKasir); ?>"
+       class="menu-item <?= $halamanAktif === 'laporan.php' ? 'active' : '' ?>">
+        <i class="bi bi-bar-chart-line"></i>
+        Laporan Penjualan
     </a>
 
     <div class="judul-menu">Akun</div>

@@ -14,7 +14,8 @@ $folders = [
     'laporan',
     'aktivitas',
     'produk',
-    'kasir'
+    'kasir',
+    'users'
 ];
 
 $lastFolder = basename($scriptDir);

@@ -19,6 +19,7 @@ if ($_SESSION['user']['role'] !== 'kasir') {
 }
 
 $namaKasir = $_SESSION['user']['nama'] ?? 'Kasir';
+$idKasir = (int) ($_SESSION['user']['id'] ?? 0);
 
 // Fungsi aman untuk mengambil angka statistik
 function ambilAngka($conn, $sql, $kolom = 'total') {
@@ -35,17 +36,17 @@ function ambilAngka($conn, $sql, $kolom = 'total') {
 // Statistik
 $totalTransaksi = ambilAngka(
     $conn,
-    "SELECT COUNT(*) AS total FROM tbl_transaksi WHERE payment_status = 'paid'"
+    "SELECT COUNT(*) AS total FROM tbl_transaksi WHERE payment_status = 'paid' AND id_kasir = $idKasir"
 );
 
 $totalPendapatan = ambilAngka(
     $conn,
-    "SELECT COALESCE(SUM(total_belanja),0) AS total FROM tbl_transaksi WHERE payment_status = 'paid'"
+    "SELECT COALESCE(SUM(total_belanja),0) AS total FROM tbl_transaksi WHERE payment_status = 'paid' AND id_kasir = $idKasir"
 );
 
 $transaksiHariIni = ambilAngka(
     $conn,
-    "SELECT COUNT(*) AS total FROM tbl_transaksi WHERE payment_status = 'paid' AND DATE(tanggal) = CURDATE()"
+    "SELECT COUNT(*) AS total FROM tbl_transaksi WHERE payment_status = 'paid' AND id_kasir = $idKasir AND DATE(tanggal) = CURDATE()"
 );
 
 $rataTransaksi = $totalTransaksi > 0
@@ -65,7 +66,7 @@ for ($i = 6; $i >= 0; $i--) {
         $conn,
         "SELECT COALESCE(SUM(total_belanja),0) AS total
          FROM tbl_transaksi
-         WHERE payment_status = 'paid' AND DATE(tanggal) = ?"
+         WHERE payment_status = 'paid' AND id_kasir = $idKasir AND DATE(tanggal) = ?"
     );
 
     mysqli_stmt_bind_param($stmtGrafik, "s", $tanggal);
@@ -89,7 +90,7 @@ $queryTerbaru = mysqli_query($conn, "
     FROM tbl_transaksi t
     LEFT JOIN tbl_pelanggan p
         ON t.id_pelanggan = p.id_pelanggan
-    WHERE t.payment_status = 'paid'
+    WHERE t.payment_status = 'paid' AND t.id_kasir = $idKasir
     ORDER BY t.id_transaksi DESC
     LIMIT 5
 ");
@@ -104,7 +105,7 @@ $queryProduk = mysqli_query($conn, "
         nama_produk,
         SUM(jumlah) AS total_terjual
     FROM tbl_detail_transaksi d
-    JOIN tbl_transaksi t ON t.id_transaksi = d.id_transaksi AND t.payment_status = 'paid'
+    JOIN tbl_transaksi t ON t.id_transaksi = d.id_transaksi AND t.payment_status = 'paid' AND t.id_kasir = $idKasir
     GROUP BY d.nama_produk
     ORDER BY total_terjual DESC
     LIMIT 5
@@ -120,7 +121,7 @@ $queryKomposisi = mysqli_query($conn, "
         d.nama_produk,
         SUM(d.jumlah * d.harga) AS total
     FROM tbl_detail_transaksi d
-    JOIN tbl_transaksi t ON t.id_transaksi = d.id_transaksi AND t.payment_status = 'paid'
+    JOIN tbl_transaksi t ON t.id_transaksi = d.id_transaksi AND t.payment_status = 'paid' AND t.id_kasir = $idKasir
     GROUP BY d.nama_produk
     ORDER BY total DESC
     LIMIT 5

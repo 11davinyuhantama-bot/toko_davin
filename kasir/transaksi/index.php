@@ -232,13 +232,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Simpan transaksi
             $stmtTransaksi = $conn->prepare("
                 INSERT INTO tbl_transaksi
-                (tanggal, id_pelanggan, total_belanja)
-                VALUES (NOW(), ?, ?)
+                (tanggal, id_pelanggan, id_kasir, total_belanja)
+                VALUES (NOW(), ?, ?, ?)
             ");
 
+            $idKasir = (int) $_SESSION['user']['id'];
             $stmtTransaksi->bind_param(
-                "id",
+                "iid",
                 $idPelanggan,
+                $idKasir,
                 $totalBelanja
             );
 

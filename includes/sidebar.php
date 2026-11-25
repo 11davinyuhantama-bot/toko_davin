@@ -18,6 +18,7 @@ $isLaporan = str_contains($path, '/laporan/');
 $isAktivitas = str_contains($path, '/aktivitas/');
 
 $isProduk = str_contains($path, '/produk/');
+$isUsers = str_contains($path, '/users/');
 
 ?>
 
@@ -94,6 +95,16 @@ $isProduk = str_contains($path, '/produk/');
         <i class="bi bi-clock-history"></i>
         Log Aktivitas
     </a>
+
+    <?php if (($_SESSION['user']['role'] ?? '') === 'admin'): ?>
+    <a
+        class="side-link <?= $isUsers ? 'active' : '' ?>"
+        href="<?= url('users/kasir.php') ?>"
+    >
+        <i class="bi bi-person-gear"></i>
+        Pengguna Kasir
+    </a>
+    <?php endif; ?>
 
     <div class="sidebar-note mt-4">
 

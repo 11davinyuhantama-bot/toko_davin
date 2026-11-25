@@ -7,7 +7,7 @@ if ($id < 1) {
     exit('ID transaksi tidak valid.');
 }
 
-$stmt = $conn->prepare('SELECT t.id_transaksi, t.tanggal, t.total_belanja, p.nama_pelanggan, p.kota FROM tbl_transaksi t LEFT JOIN tbl_pelanggan p ON p.id_pelanggan = t.id_pelanggan WHERE t.id_transaksi = ? LIMIT 1');
+$stmt = $conn->prepare('SELECT t.id_transaksi, t.id_kasir, t.tanggal, t.total_belanja, p.nama_pelanggan, p.kota FROM tbl_transaksi t LEFT JOIN tbl_pelanggan p ON p.id_pelanggan = t.id_pelanggan WHERE t.id_transaksi = ? LIMIT 1');
 $stmt->bind_param('i', $id);
 $stmt->execute();
 $transaksi = $stmt->get_result()->fetch_assoc();
@@ -16,7 +16,10 @@ if (!$transaksi) {
     http_response_code(404);
     exit('Transaksi tidak ditemukan.');
 }
-
+if (($_SESSION['user']['role'] ?? '') === 'kasir' && (int) $transaksi['id_kasir'] !== (int) ($_SESSION['user']['id'] ?? 0)) {
+    http_response_code(404);
+    exit('Transaksi tidak ditemukan.');
+}
 $stmt = $conn->prepare('SELECT d.nama_produk, d.jumlah, d.harga, p.kode_produk FROM tbl_detail_transaksi d LEFT JOIN tbl_produk p ON p.nama_produk = d.nama_produk WHERE d.id_transaksi = ? ORDER BY d.id_detail');
 $stmt->bind_param('i', $id);
 $stmt->execute();

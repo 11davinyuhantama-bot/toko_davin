@@ -12,9 +12,10 @@ $halaman = max(1, (int) ($_GET['halaman'] ?? 1));
 $perHalaman = 15;
 $offset = ($halaman - 1) * $perHalaman;
 
-$where = ["t.payment_status = 'paid'"];
-$types = '';
-$params = [];
+$idKasir = (int) ($_SESSION['user']['id'] ?? 0);
+$where = ["t.payment_status = 'paid'", 't.id_kasir = ?'];
+$types = 'i';
+$params = [$idKasir];
 if ($kataKunci !== '') {
     $where[] = '(CAST(t.id_transaksi AS CHAR) LIKE ? OR p.nama_pelanggan LIKE ?)';
     $term = '%' . $kataKunci . '%';
