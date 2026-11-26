@@ -23,7 +23,7 @@ try {
     $conn->set_charset("utf8mb4");
 
     $currentPage = basename($_SERVER['SCRIPT_NAME'] ?? '');
-    if (!in_array($currentPage, ['login.php', 'logout.php', 'register.php'], true) && empty($_SESSION['user'])) {
+    if (!in_array($currentPage, ['login.php', 'logout.php', 'register.php', 'duitku_callback.php'], true) && empty($_SESSION['user'])) {
         redirect('login.php');
     }
 
@@ -44,7 +44,9 @@ try {
             url('pelanggan/beranda.php'),
             url('pelanggan/riwayat.php'),
             url('pelanggan/pembayaran.php'),
-            url('pelanggan/detail_transaksi.php')
+            url('pelanggan/detail_transaksi.php'),
+            url('payment/duitku_return.php'),
+            url('payment/duitku_callback.php')
         ];
         if (!in_array($currentScript, $allowedCustomerPages, true)) {
             redirect('pelanggan/beranda.php');

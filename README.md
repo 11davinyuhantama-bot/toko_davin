@@ -326,18 +326,18 @@ Fitur Pelanggan:
 
 ---
 
-## 💳 Sistem Pembayaran QRIS
+## 💳 Sistem Pembayaran Duitku
 
-Tokoku menggunakan metode pembayaran QRIS statis dengan proses verifikasi manual oleh admin.
+Pelanggan dapat memilih QRIS toko dengan verifikasi bukti manual atau payment gateway Duitku. Pada gateway, kanal aktif dimuat dari Duitku dan pelanggan menyelesaikan pembayaran melalui halaman Tokoku yang menampilkan QRIS atau nomor Virtual Account bila tersedia. Status dicek ke Duitku; setelah sukses, pelanggan melihat struk dan mendapat notifikasi di beranda. Nama kanal pilihan turut dicetak pada struk. Edit `config/duitku.local.php` untuk mengisi merchant code, API key, dan URL HTTPS publik. Jalankan `database/duitku_migration.sql`, `database/duitku_payment_channel_migration.sql`, dan `database/duitku_payment_details_migration.sql` satu kali pada database `db_tokoko`, aktifkan cURL PHP, lalu daftarkan callback `{base_url}/payment/duitku_callback.php` di proyek Duitku. Mode awal adalah sandbox; ubah ke `production` setelah akun dan kanal pembayaran aktif. File kredensial lokal dikecualikan dari Git.
+
+Pesanan checkout baru memakai Duitku. Pesanan QRIS statis lama tetap dapat diproses dengan unggah bukti dan verifikasi manual oleh admin.
 
 ### Proses Pembayaran
 
 - Pelanggan melakukan checkout.
 - Sistem membuat pesanan dengan status menunggu pembayaran.
-- Pelanggan melakukan pembayaran melalui QRIS merchant.
-- Pelanggan mengunggah bukti pembayaran.
-- Admin memeriksa bukti dan transaksi masuk.
-- Admin melakukan konfirmasi pembayaran.
+- Pelanggan menyelesaikan pembayaran di halaman Duitku.
+- Callback Duitku dikonfirmasi ke API status transaksi sebelum status pesanan diperbarui.
 
 ### Status Pembayaran
 

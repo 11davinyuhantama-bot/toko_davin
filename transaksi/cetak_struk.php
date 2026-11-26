@@ -7,7 +7,7 @@ if ($id < 1) {
     exit('ID transaksi tidak valid.');
 }
 
-$stmt = $conn->prepare('SELECT t.id_transaksi, t.id_kasir, t.tanggal, t.total_belanja, p.nama_pelanggan, p.kota FROM tbl_transaksi t LEFT JOIN tbl_pelanggan p ON p.id_pelanggan = t.id_pelanggan WHERE t.id_transaksi = ? LIMIT 1');
+$stmt = $conn->prepare('SELECT t.id_transaksi, t.id_kasir, t.tanggal, t.total_belanja, t.payment_method, t.payment_channel, t.payment_status, t.payment_reference, p.nama_pelanggan, p.kota FROM tbl_transaksi t LEFT JOIN tbl_pelanggan p ON p.id_pelanggan = t.id_pelanggan WHERE t.id_transaksi = ? LIMIT 1');
 $stmt->bind_param('i', $id);
 $stmt->execute();
 $transaksi = $stmt->get_result()->fetch_assoc();
@@ -27,6 +27,15 @@ $detail = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
 $tanggal = date('d M Y, H:i', strtotime($transaksi['tanggal']));
 $jumlahItem = array_sum(array_map(static fn($item) => (int) $item['jumlah'], $detail));
+$urlKembali = ($_SESSION['user']['role'] ?? '') === 'kasir'
+    ? url('kasir/transaksi/riwayat.php')
+    : url('transaksi/index.php');
+$metodePembayaran = ['qris_static' => 'QRIS toko (verifikasi manual)', 'duitku' => 'Duitku Payment Gateway', 'cash' => 'Tunai', 'transfer' => 'Transfer bank'];
+$statusPembayaran = ['pending' => 'Menunggu pembayaran', 'verification' => 'Menunggu verifikasi', 'paid' => 'Lunas', 'expired' => 'Kedaluwarsa', 'cancelled' => 'Dibatalkan', 'failed' => 'Gagal'];
+$labelMetodePembayaran = $metodePembayaran[$transaksi['payment_method']] ?? ucfirst((string) ($transaksi['payment_method'] ?? 'Tidak diketahui'));
+if (($transaksi['payment_method'] ?? '') === 'duitku' && !empty($transaksi['payment_channel'])) {
+    $labelMetodePembayaran = $transaksi['payment_channel'] . ' (Duitku)';
+}
 ?>
 <!doctype html>
 <html lang="id">
@@ -96,6 +105,12 @@ $jumlahItem = array_sum(array_map(static fn($item) => (int) $item['jumlah'], $de
                 <div><div class="meta-label">Jumlah item</div><div class="meta-value"><?= $jumlahItem ?> barang</div></div>
             </div>
 
+            <div class="receipt-meta">
+                <div><div class="meta-label">Metode pembayaran</div><div class="meta-value"><?= e($labelMetodePembayaran) ?></div></div>
+                <div><div class="meta-label">Status pembayaran</div><div class="meta-value"><?= e($statusPembayaran[$transaksi['payment_status']] ?? ucfirst((string) $transaksi['payment_status'])) ?></div></div>
+                <?php if (($transaksi['payment_method'] ?? '') === 'duitku' && !empty($transaksi['payment_reference'])): ?><div><div class="meta-label">Referensi Duitku</div><div class="meta-value"><?= e($transaksi['payment_reference']) ?></div></div><?php endif; ?>
+            </div>
+
             <h2 class="h6 fw-bold mb-2">Rincian belanja</h2>
             <div class="table-responsive"><table class="table receipt-table mb-0">
                 <thead><tr><th>Produk</th><th class="text-center">Qty</th><th class="text-end">Subtotal</th></tr></thead>
@@ -113,16 +128,9 @@ $jumlahItem = array_sum(array_map(static fn($item) => (int) $item['jumlah'], $de
 
     <div class="actions">
         <button type="button" onclick="window.print()" class="btn btn-primary px-4"><i class="bi bi-printer me-2"></i>Cetak struk</button>
-        <button type="button" onclick="keluar()" class="btn btn-outline-secondary px-4"><i class="bi bi-x-lg me-2"></i>Tutup</button>
+        <a href="<?= e($urlKembali) ?>" class="btn btn-outline-secondary px-4"><i class="bi bi-arrow-left me-2"></i>Kembali ke transaksi</a>
     </div>
 </main>
-<script>
-function keluar(){
-    if(window.opener){window.close();return;}
-    if(window.history.length>1){window.history.back();return;}
-    window.location.href='index.php';
-}
-</script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <script>
 document.querySelectorAll('.item-barcode').forEach(function (svg) {

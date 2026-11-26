@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/payment_status.php';
+require_once __DIR__ . '/../config/duitku_client.php';
 
 if (($_SESSION['user']['role'] ?? '') !== 'pelanggan') {
     redirect('login.php');
@@ -69,6 +70,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($aksi === 'checkout') {
+        $paymentMethod = (string) ($_POST['payment_method'] ?? 'qris_static');
+        if (!in_array($paymentMethod, ['qris_static', 'duitku'], true)) {
+            set_flash('warning', 'Pilih metode pembayaran yang tersedia.');
+            redirect('pelanggan/beranda.php#keranjang');
+        }
+        if ($paymentMethod === 'duitku' && !duitkuReady()) {
+            set_flash('warning', 'Pembayaran Duitku belum dikonfigurasi. Lengkapi merchant code dan URL publik pada config/duitku.local.php.');
+            redirect('pelanggan/beranda.php#keranjang');
+        }
         if ($idPelanggan < 1) {
             set_flash('danger', 'Akun belum terhubung ke profil pelanggan. Hubungi admin toko.');
             redirect('pelanggan/beranda.php#keranjang');
@@ -102,8 +112,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $stmtProduk->close();
 
-            $stmtTransaksi = $conn->prepare("INSERT INTO tbl_transaksi (tanggal, id_pelanggan, total_belanja, payment_status, payment_method) VALUES (NOW(), ?, ?, 'pending', 'qris_static')");
-            $stmtTransaksi->bind_param('id', $idPelanggan, $total);
+            $stmtTransaksi = $conn->prepare("INSERT INTO tbl_transaksi (tanggal, id_pelanggan, total_belanja, payment_status, payment_method) VALUES (NOW(), ?, ?, 'pending', ?)");
+            $stmtTransaksi->bind_param('ids', $idPelanggan, $total, $paymentMethod);
             $stmtTransaksi->execute();
             $idTransaksi = $conn->insert_id;
             $stmtTransaksi->close();
@@ -132,7 +142,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $cart = [];
             $_SESSION['csrf_pelanggan'] = bin2hex(random_bytes(32));
-            header('Location: pembayaran.php?id=' . $idTransaksi);
+            redirect('pelanggan/pembayaran.php?id=' . $idTransaksi);
             exit;
         } catch (Throwable $exception) {
             if ($transaksiDimulai) {
@@ -213,6 +223,9 @@ if ($idPelanggan > 0) {
 <?php $menuPelangganAktif = 'beranda'; $customerCartCount = $jumlahItem; require __DIR__ . '/../includes/sidebar_pelanggan.php'; ?>
 <main class="customer-main"><div class="container-fluid p-0">
     <?php show_flash(); ?>
+    <?php if (!empty($_SESSION['payment_success_notice'])): $paymentSuccessId = (int) $_SESSION['payment_success_notice']; unset($_SESSION['payment_success_notice']); ?>
+        <div class="alert alert-success d-flex justify-content-between align-items-center flex-wrap gap-2"><span><i class="bi bi-check-circle-fill me-2"></i>Pembayaran pesanan #<?= $paymentSuccessId ?> berhasil dikonfirmasi.</span><a class="btn btn-sm btn-success" href="<?= url('pelanggan/detail_transaksi.php?id=' . $paymentSuccessId) ?>">Lihat struk</a></div>
+    <?php endif; ?>
     <section class="hero mb-4"><div class="d-flex flex-wrap justify-content-between align-items-center gap-3"><div><div class="text-white-50 small text-uppercase fw-semibold mb-2">Toko online</div><h1 class="h2 fw-bold mb-2">Halo, <?= e($_SESSION['user']['nama']) ?>!</h1><p class="mb-0 text-white-50">Temukan produk, pesan dengan mudah, dan pantau belanja Anda.</p></div><a class="btn btn-light text-primary fw-semibold" href="#katalog"><i class="bi bi-bag me-2"></i>Mulai belanja</a></div></section>
 
     <div class="row g-3 mb-4"><div class="col-6 col-xl-4"><div class="card stat-card"><div class="card-body d-flex align-items-center gap-3"><span class="rounded-3 bg-primary-subtle text-primary p-3"><i class="bi bi-box-seam fs-5"></i></span><div><div class="small text-secondary">Produk tersedia</div><strong><?= count($produk) ?></strong></div></div></div></div><div class="col-6 col-xl-4"><div class="card stat-card"><div class="card-body d-flex align-items-center gap-3"><span class="rounded-3 bg-success-subtle text-success p-3"><i class="bi bi-cart3 fs-5"></i></span><div><div class="small text-secondary">Item di keranjang</div><strong><?= $jumlahItem ?></strong></div></div></div></div><div class="col-12 col-xl-4"><div class="card stat-card"><div class="card-body d-flex align-items-center gap-3"><span class="rounded-3 bg-warning-subtle text-warning p-3"><i class="bi bi-receipt fs-5"></i></span><div><div class="small text-secondary">Riwayat belanja</div><strong><?= count($riwayat) ?> transaksi terakhir</strong></div></div></div></div></div>

@@ -19,6 +19,10 @@ $queryTransaksi = "
         t.tanggal,
         t.id_pelanggan,
         t.total_belanja,
+        t.payment_method,
+        t.payment_channel,
+        t.payment_status,
+        t.payment_reference,
         p.nama_pelanggan,
         p.kota
     FROM tbl_transaksi t
@@ -36,6 +40,12 @@ if (!$resultTransaksi || $resultTransaksi->num_rows == 0) {
 }
 
 $transaksi = $resultTransaksi->fetch_assoc();
+$metodePembayaran = ['qris_static' => 'QRIS toko (verifikasi manual)', 'duitku' => 'Duitku Payment Gateway', 'cash' => 'Tunai', 'transfer' => 'Transfer bank'];
+$statusPembayaran = ['pending' => 'Menunggu pembayaran', 'verification' => 'Menunggu verifikasi', 'paid' => 'Lunas', 'expired' => 'Kedaluwarsa', 'cancelled' => 'Dibatalkan', 'failed' => 'Gagal'];
+$labelMetodePembayaran = $metodePembayaran[$transaksi['payment_method']] ?? ucfirst((string) ($transaksi['payment_method'] ?? 'Tidak diketahui'));
+if (($transaksi['payment_method'] ?? '') === 'duitku' && !empty($transaksi['payment_channel'])) {
+    $labelMetodePembayaran = $transaksi['payment_channel'] . ' (Duitku)';
+}
 
 // Ambil detail barang transaksi
 $queryDetail = "
@@ -77,14 +87,14 @@ include '../includes/header.php';
         </div>
 
         <div class="d-flex gap-2">
-            <a href="cetak_struk.php?id=<?= (int) $transaksi['id_transaksi'] ?>"
+            <a href="<?= url('transaksi/cetak_struk.php?id=' . (int) $transaksi['id_transaksi']) ?>"
                target="_blank"
                class="btn btn-dark">
                 <i class="bi bi-printer me-1"></i>
                 Cetak Struk
             </a>
 
-            <a href="index.php" class="btn btn-secondary">
+            <a href="<?= url('transaksi/index.php') ?>" class="btn btn-secondary">
                 <i class="bi bi-arrow-left me-1"></i>
                 Kembali
             </a>
@@ -130,6 +140,20 @@ include '../includes/header.php';
                                 <?= rupiah($transaksi['total_belanja']) ?>
                             </td>
                         </tr>
+                        <tr>
+                            <td class="text-secondary">Metode Pembayaran</td>
+                            <td class="fw-semibold"><?= e($labelMetodePembayaran) ?></td>
+                        </tr>
+                        <tr>
+                            <td class="text-secondary">Status Pembayaran</td>
+                            <td class="fw-semibold"><?= e($statusPembayaran[$transaksi['payment_status']] ?? ucfirst((string) $transaksi['payment_status'])) ?></td>
+                        </tr>
+                        <?php if (($transaksi['payment_method'] ?? '') === 'duitku' && !empty($transaksi['payment_reference'])): ?>
+                        <tr>
+                            <td class="text-secondary">Referensi Duitku</td>
+                            <td class="fw-semibold"><?= e($transaksi['payment_reference']) ?></td>
+                        </tr>
+                        <?php endif; ?>
                     </table>
                 </div>
             </div>
